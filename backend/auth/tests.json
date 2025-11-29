@@ -1,0 +1,37 @@
+{
+  "tests": [
+    {
+      "name": "Verify session token",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "action": "verify",
+        "sessionToken": "invalid_token"
+      },
+      "expectedStatus": 401,
+      "expectedBody": {
+        "error": "string"
+      },
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "Login existing user",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "action": "login",
+        "username": "test_user",
+        "password": "testpass123"
+      },
+      "expectedStatus": 200,
+      "expectedBody": {
+        "success": true,
+        "user": {
+          "username": "string"
+        },
+        "sessionToken": "string"
+      },
+      "bodyMatcher": "partial"
+    }
+  ]
+}

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -7,6 +7,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import Icon from '@/components/ui/icon';
+import { AuthDialog } from '@/components/AuthDialog';
+import { authService, type User } from '@/lib/auth';
+import { useToast } from '@/hooks/use-toast';
 
 interface Skin {
   id: number;
@@ -40,6 +43,31 @@ function Index() {
   const [gameFilter, setGameFilter] = useState<string>('all');
   const [rarityFilter, setRarityFilter] = useState<string>('all');
   const [sortBy, setSortBy] = useState<string>('popular');
+  const [user, setUser] = useState<User | null>(null);
+  const [authDialogOpen, setAuthDialogOpen] = useState(false);
+  const { toast } = useToast();
+
+  useEffect(() => {
+    const { token, user: savedUser } = authService.getSession();
+    if (token && savedUser) {
+      authService.verify(token).then((result) => {
+        if (result.success && result.user) {
+          setUser(result.user);
+        } else {
+          authService.clearSession();
+        }
+      });
+    }
+  }, []);
+
+  const handleLogout = () => {
+    authService.clearSession();
+    setUser(null);
+    toast({
+      title: 'Выход выполнен',
+      description: 'До встречи!',
+    });
+  };
 
   const getRarityColor = (rarity: string) => {
     const colors = {
@@ -90,6 +118,31 @@ function Index() {
             </div>
             
             <div className="flex items-center gap-4">
+              {user ? (
+                <div className="flex items-center gap-3">
+                  <div className="text-right">
+                    <p className="font-rajdhani font-semibold text-primary">{user.username}</p>
+                    <p className="text-sm text-muted-foreground">${user.balance}</p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={handleLogout}
+                    className="border-border/50 hover:border-destructive hover:text-destructive"
+                  >
+                    <Icon name="LogOut" className="w-4 h-4" />
+                  </Button>
+                </div>
+              ) : (
+                <Button
+                  variant="outline"
+                  onClick={() => setAuthDialogOpen(true)}
+                  className="border-neon-cyan/50 hover:border-neon-cyan hover:glow-cyan"
+                >
+                  <Icon name="User" className="w-4 h-4 mr-2" />
+                  Войти
+                </Button>
+              )}
               <Sheet>
                 <SheetTrigger asChild>
                   <Button variant="outline" className="relative border-neon-cyan/50 hover:border-neon-cyan hover:glow-cyan transition-all">
@@ -308,56 +361,62 @@ function Index() {
           </TabsContent>
 
           <TabsContent value="profile" className="animate-slide-in">
-            <div className="max-w-2xl mx-auto space-y-6">
-              <Card className="glass-effect p-8 border border-border/50">
-                <div className="flex items-center gap-6 mb-6">
-                  <div className="w-24 h-24 rounded-full bg-gradient-to-br from-neon-cyan to-neon-purple flex items-center justify-center text-4xl glow-cyan">
-                    👤
-                  </div>
-                  <div>
-                    <h2 className="text-3xl font-rajdhani font-bold mb-2 text-glow-purple">Pro_Gamer_2024</h2>
-                    <p className="text-muted-foreground">Участник с января 2024</p>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-3 gap-4">
-                  <Card className="glass-effect p-4 text-center border-neon-cyan/30">
-                    <div className="text-3xl font-rajdhani font-bold text-primary text-glow-cyan">$1,250</div>
-                    <div className="text-sm text-muted-foreground mt-1">Баланс</div>
-                  </Card>
-                  <Card className="glass-effect p-4 text-center border-neon-purple/30">
-                    <div className="text-3xl font-rajdhani font-bold text-secondary text-glow-purple">47</div>
-                    <div className="text-sm text-muted-foreground mt-1">Покупок</div>
-                  </Card>
-                  <Card className="glass-effect p-4 text-center border-accent/30">
-                    <div className="text-3xl font-rajdhani font-bold text-accent glow-pink">Gold</div>
-                    <div className="text-sm text-muted-foreground mt-1">Статус</div>
-                  </Card>
-                </div>
-              </Card>
-
-              <Card className="glass-effect p-6 border border-border/50">
-                <h3 className="text-xl font-rajdhani font-bold mb-4 flex items-center gap-2">
-                  <Icon name="History" className="w-5 h-5 text-primary" />
-                  Последние покупки
-                </h3>
-                <div className="space-y-3">
-                  {[
-                    { name: 'Dragon Lore AWP', date: '15 ноября 2024', price: 2500 },
-                    { name: 'Butterfly Knife Fade', date: '12 ноября 2024', price: 1800 },
-                    { name: 'AK-47 Fire Serpent', date: '8 ноября 2024', price: 950 }
-                  ].map((purchase, index) => (
-                    <div key={index} className="flex justify-between items-center py-3 border-b border-border/30 last:border-0">
-                      <div>
-                        <p className="font-medium">{purchase.name}</p>
-                        <p className="text-sm text-muted-foreground">{purchase.date}</p>
-                      </div>
-                      <span className="text-primary font-rajdhani font-semibold">${purchase.price}</span>
+            {!user ? (
+              <div className="max-w-2xl mx-auto">
+                <Card className="glass-effect p-12 text-center border border-border/50">
+                  <Icon name="UserX" className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
+                  <h3 className="text-2xl font-rajdhani font-bold mb-2">Войдите в аккаунт</h3>
+                  <p className="text-muted-foreground mb-6">Чтобы просматривать профиль и покупки</p>
+                  <Button
+                    onClick={() => setAuthDialogOpen(true)}
+                    className="bg-gradient-to-r from-neon-cyan to-neon-purple hover:opacity-90 glow-cyan"
+                  >
+                    <Icon name="LogIn" className="w-4 h-4 mr-2" />
+                    Войти
+                  </Button>
+                </Card>
+              </div>
+            ) : (
+              <div className="max-w-2xl mx-auto space-y-6">
+                <Card className="glass-effect p-8 border border-border/50">
+                  <div className="flex items-center gap-6 mb-6">
+                    <div className="w-24 h-24 rounded-full bg-gradient-to-br from-neon-cyan to-neon-purple flex items-center justify-center text-4xl glow-cyan">
+                      👤
                     </div>
-                  ))}
-                </div>
-              </Card>
-            </div>
+                    <div>
+                      <h2 className="text-3xl font-rajdhani font-bold mb-2 text-glow-purple">{user.username}</h2>
+                      <p className="text-muted-foreground">{user.email}</p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-4">
+                    <Card className="glass-effect p-4 text-center border-neon-cyan/30">
+                      <div className="text-3xl font-rajdhani font-bold text-primary text-glow-cyan">${user.balance}</div>
+                      <div className="text-sm text-muted-foreground mt-1">Баланс</div>
+                    </Card>
+                    <Card className="glass-effect p-4 text-center border-neon-purple/30">
+                      <div className="text-3xl font-rajdhani font-bold text-secondary text-glow-purple">{cart.length}</div>
+                      <div className="text-sm text-muted-foreground mt-1">В корзине</div>
+                    </Card>
+                    <Card className="glass-effect p-4 text-center border-accent/30">
+                      <div className="text-3xl font-rajdhani font-bold text-accent glow-pink">Gold</div>
+                      <div className="text-sm text-muted-foreground mt-1">Статус</div>
+                    </Card>
+                  </div>
+                </Card>
+
+                <Card className="glass-effect p-6 border border-border/50">
+                  <h3 className="text-xl font-rajdhani font-bold mb-4 flex items-center gap-2">
+                    <Icon name="History" className="w-5 h-5 text-primary" />
+                    Последние покупки
+                  </h3>
+                  <div className="text-center py-8 text-muted-foreground">
+                    <Icon name="ShoppingBag" className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                    <p>Покупок пока нет</p>
+                  </div>
+                </Card>
+              </div>
+            )}
           </TabsContent>
 
           <TabsContent value="about" className="animate-slide-in">
@@ -519,6 +578,12 @@ function Index() {
           <p className="text-sm mt-2">Киберспортивный маркетплейс игровых предметов</p>
         </div>
       </footer>
+
+      <AuthDialog
+        open={authDialogOpen}
+        onOpenChange={setAuthDialogOpen}
+        onAuthSuccess={setUser}
+      />
     </div>
   );
 }
